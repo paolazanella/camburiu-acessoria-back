@@ -3,7 +3,6 @@ package br.com.camburiu.camburiu_acessoria.controller;
 
 import br.com.camburiu.camburiu_acessoria.model.Administrador;
 import br.com.camburiu.camburiu_acessoria.repository.AdministradorRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
