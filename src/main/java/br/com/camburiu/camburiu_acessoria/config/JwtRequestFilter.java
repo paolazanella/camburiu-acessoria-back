@@ -1,12 +1,7 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
-
 package br.com.camburiu.camburiu_acessoria.config;
 
 import java.io.IOException;
- 
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.NonNull;
@@ -16,7 +11,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.springframework.web.server.ResponseStatusException;
 
 import br.com.camburiu.camburiu_acessoria.service.JwtUserDetailsService;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -43,19 +37,24 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         String username = null;
         String jwtToken = null;
 
-        if (requestTokenHeader != null && requestTokenHeader.startsWith("Bearer ")) {
-            jwtToken = requestTokenHeader.substring(7);
-            try {
-                username = jwtTokenUtil.getUsernameFromToken(jwtToken);
-            } catch (IllegalArgumentException e) {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "TOKEN_INCORRETO");
-            } catch (ExpiredJwtException e) {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "TOKEN_EXPIRADO");
-            }
-        } else {
-            logger.warn("JWT Token does not begin with Bearer String");
+        if (requestTokenHeader == null || !requestTokenHeader.startsWith("Bearer ")) {
+            logger.warn("JWT Token is missing or does not begin with Bearer String");
+            chain.doFilter(request, response);
+            return;  // ✅ Bloqueia a execução se o token não for válido
         }
 
+        jwtToken = requestTokenHeader.substring(7);
+        try {
+            username = jwtTokenUtil.getUsernameFromToken(jwtToken);
+        } catch (IllegalArgumentException e) {
+            response.sendError(HttpStatus.UNAUTHORIZED.value(), "TOKEN_INCORRETO");
+            return;
+        } catch (ExpiredJwtException e) {
+            response.sendError(HttpStatus.UNAUTHORIZED.value(), "TOKEN_EXPIRADO");
+            return;
+        }
+
+        // Verifica se o usuário já está autenticado
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = this.jwtUserDetailsService.loadUserByUsername(username);
 
