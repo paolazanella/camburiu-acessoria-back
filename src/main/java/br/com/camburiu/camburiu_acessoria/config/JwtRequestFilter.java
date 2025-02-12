@@ -38,10 +38,10 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         String jwtToken = null;
 
         if (requestTokenHeader == null || !requestTokenHeader.startsWith("Bearer ")) {
+            logger.error("🚨 Token inválido! Header recebido: " + requestTokenHeader);
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "TOKEN_INVALIDO");
             return;
         }
-        
 
         jwtToken = requestTokenHeader.substring(7);
         try {

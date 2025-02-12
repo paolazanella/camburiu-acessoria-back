@@ -6,10 +6,9 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
+
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.DisabledException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -28,8 +27,6 @@ public class UsuarioController {
     @Autowired
     private UsuarioRepository usuarioRepository;
 
-    @Autowired
-    private AuthenticationManager authenticationManager;
 
     @Autowired
     private JwtTokenUtil jwtTokenUtil;
@@ -41,10 +38,8 @@ public class UsuarioController {
 
     // 🔍 Listar todos os usuários (somente Admin)
     @GetMapping
-    public ResponseEntity<List<Usuario>> listarUsuarios(@RequestHeader("Authorization") String token) {
-        String emailUsuarioLogado = jwtTokenUtil.getUsernameFromToken(token.substring(7));
-        Usuario usuarioLogado = usuarioRepository.findByEmail(emailUsuarioLogado)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não encontrado"));
+    public ResponseEntity<List<Usuario>> listarUsuarios(@RequestHeader(value = "Authorization", required = false) String token) {
+        Usuario usuarioLogado = validarTokenEObterUsuario(token);
 
         if (usuarioLogado.getStatus() != 1) { // Apenas admin pode listar usuários
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -55,14 +50,11 @@ public class UsuarioController {
 
     // 🔍 Buscar usuário por ID (somente o próprio usuário ou admin)
     @GetMapping("/{id}")
-    public ResponseEntity<Usuario> buscarPorId(@PathVariable Long id, @RequestHeader("Authorization") String token) {
-        String emailUsuarioLogado = jwtTokenUtil.getUsernameFromToken(token.substring(7));
-        Usuario usuarioLogado = usuarioRepository.findByEmail(emailUsuarioLogado)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não encontrado"));
+    public ResponseEntity<Usuario> buscarPorId(@PathVariable Long id, @RequestHeader(value = "Authorization", required = false) String token) {
+        Usuario usuarioLogado = validarTokenEObterUsuario(token);
 
         Optional<Usuario> usuario = usuarioRepository.findById(id);
 
-        // O próprio usuário ou um admin pode visualizar os detalhes
         if (usuario.isPresent() && (usuarioLogado.getStatus() == 1 || usuarioLogado.getId().equals(id))) {
             return ResponseEntity.ok(usuario.get());
         } else {
@@ -70,16 +62,17 @@ public class UsuarioController {
         }
     }
 
-    // ➕ Criar novo usuário (usuário normal ou admin)
+    // ➕ Criar novo usuário (somente Admin, exceto no primeiro cadastro)
     @PostMapping
-    public ResponseEntity<Usuario> criarUsuario(@RequestBody Usuario usuario,
-            @RequestHeader("Authorization") String token) {
-        String emailUsuarioLogado = jwtTokenUtil.getUsernameFromToken(token.substring(7));
-        Usuario usuarioLogado = usuarioRepository.findByEmail(emailUsuarioLogado)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não encontrado"));
-
-        if (usuarioLogado.getStatus() != 1) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build(); // Apenas admin pode criar usuários
+    public ResponseEntity<Usuario> criarUsuario(@RequestBody Usuario usuario, @RequestHeader(value = "Authorization", required = false) String token) {
+        if (usuarioRepository.count() == 0) {
+            // Se for o primeiro usuário, torna-se admin automaticamente
+            usuario.setStatus(1);
+        } else {
+            Usuario usuarioLogado = validarTokenEObterUsuario(token);
+            if (usuarioLogado.getStatus() != 1) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
         }
 
         usuario.setSenha(passwordEncoder.encode(usuario.getSenha()));
@@ -91,20 +84,14 @@ public class UsuarioController {
 
     // ✏️ Atualizar informações do usuário
     @PutMapping("/{id}")
-    public ResponseEntity<Usuario> atualizarUsuario(@PathVariable Long id, @RequestBody Usuario usuarioAtualizado,
-            @RequestHeader("Authorization") String token) {
-        String emailUsuarioLogado = jwtTokenUtil.getUsernameFromToken(token.substring(7));
-        Usuario usuarioLogado = usuarioRepository.findByEmail(emailUsuarioLogado)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não encontrado"));
+    public ResponseEntity<Usuario> atualizarUsuario(@PathVariable Long id, @RequestBody Usuario usuarioAtualizado, @RequestHeader(value = "Authorization", required = false) String token) {
+        Usuario usuarioLogado = validarTokenEObterUsuario(token);
 
         return usuarioRepository.findById(id).map(usuario -> {
-            // Verifica se o usuário logado tem permissão para atualizar
             if (!usuarioLogado.getId().equals(id) && usuarioLogado.getStatus() != 1) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(usuario); // Retorna o usuário atual sem
-                                                                                  // alterações
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(usuario);
             }
 
-            // Atualiza os dados do usuário
             usuario.setNome(usuarioAtualizado.getNome());
             usuario.setEmail(usuarioAtualizado.getEmail());
 
@@ -113,17 +100,14 @@ public class UsuarioController {
                 usuario.setStatus(usuarioAtualizado.getStatus());
             }
 
-            // Salva o usuário atualizado e retorna
             return ResponseEntity.ok(usuarioRepository.save(usuario));
         }).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado"));
     }
 
     // ❌ Excluir usuário (somente admin)
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletarUsuario(@PathVariable Long id, @RequestHeader("Authorization") String token) {
-        String emailUsuarioLogado = jwtTokenUtil.getUsernameFromToken(token.substring(7));
-        Usuario usuarioLogado = usuarioRepository.findByEmail(emailUsuarioLogado)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não encontrado"));
+    public ResponseEntity<Void> deletarUsuario(@PathVariable Long id, @RequestHeader(value = "Authorization", required = false) String token) {
+        Usuario usuarioLogado = validarTokenEObterUsuario(token);
 
         if (usuarioLogado.getStatus() != 1) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -153,12 +137,20 @@ public class UsuarioController {
 
     // 🔐 Método privado para autenticar usuário
     private void authenticate(String username, String password) throws Exception {
-        try {
-            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
-        } catch (DisabledException e) {
-            throw new Exception("USER_DISABLED", e);
-        } catch (BadCredentialsException e) {
-            throw new Exception("INVALID_CREDENTIALS", e);
+        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        if (!passwordEncoder.matches(password, userDetails.getPassword())) {
+            throw new BadCredentialsException("INVALID_CREDENTIALS");
         }
+    }
+
+    // 🔑 Método para validar o token e obter usuário autenticado
+    private Usuario validarTokenEObterUsuario(String token) {
+        if (token == null || !token.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "TOKEN INVÁLIDO");
+        }
+
+        String emailUsuarioLogado = jwtTokenUtil.getUsernameFromToken(token.substring(7));
+        return usuarioRepository.findByEmail(emailUsuarioLogado)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não encontrado"));
     }
 }
