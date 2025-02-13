@@ -58,11 +58,17 @@ public class JwtAuthenticationController {
 
     private void authenticate(String username, String password) throws Exception {
         try {
+            System.out.println("🔑 Autenticando: " + username);
+    
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
+    
+            System.out.println("✅ Autenticação bem-sucedida para: " + username);
         } catch (DisabledException e) {
+            System.out.println("❌ Erro: Usuário desativado!");
             throw new Exception("USER_DISABLED", e);
         } catch (BadCredentialsException e) {
+            System.out.println("❌ Erro: Credenciais inválidas!");
             throw new Exception("INVALID_CREDENTIALS", e);
         }
     }
-}
+}    
