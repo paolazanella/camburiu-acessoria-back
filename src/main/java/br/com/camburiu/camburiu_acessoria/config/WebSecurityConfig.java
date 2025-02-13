@@ -38,23 +38,24 @@ public class WebSecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf.disable()) // 🔥 Desabilita CSRF para permitir chamadas de API
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/authenticate", "/api/usuarios/criar", "/swagger-ui/**",
                                 "/v3/api-docs/**")
-                        .permitAll()
-                        .anyRequest().authenticated())
+                        .permitAll() // 🔓 Libera login e cadastro
+                        .anyRequest().authenticated()) // 🔒 Exige autenticação para o restante
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
+        // 🔥 Adiciona o filtro JWT ANTES da autenticação padrão do Spring
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
     @Bean
-    public AuthenticationManager authenticationManager() {
-        return new ProviderManager(List.of(authenticationProvider()));
+    public AuthenticationManager authenticationManager(AuthenticationProvider authenticationProvider) {
+        return new ProviderManager(List.of(authenticationProvider));
     }
 
     @Bean
