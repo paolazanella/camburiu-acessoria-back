@@ -28,45 +28,54 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     private JwtTokenUtil jwtTokenUtil;
 
     @Override
-    protected void doFilterInternal(@NonNull HttpServletRequest request, 
-                                    @NonNull HttpServletResponse response, 
-                                    @NonNull FilterChain chain) 
+    protected void doFilterInternal(@NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain chain)
             throws ServletException, IOException {
+        // Recupera o cabeçalho Authorization da requisição
         final String requestTokenHeader = request.getHeader("Authorization");
 
-        String username = null;
-        String jwtToken = null;
-
         if (requestTokenHeader == null || !requestTokenHeader.startsWith("Bearer ")) {
-            logger.error("🚨 Token inválido! Header recebido: " + requestTokenHeader);
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "TOKEN_INVALIDO");
+            // Se o token não for encontrado ou não começar com "Bearer ", faz log e passa
+            // para o próximo filtro
+            System.out.println("🚨 Nenhum token JWT recebido! Header Authorization: " + requestTokenHeader);
+            chain.doFilter(request, response);
             return;
         }
 
-        jwtToken = requestTokenHeader.substring(7);
+        // Extrai o token JWT do cabeçalho
+        String jwtToken = requestTokenHeader.substring(7);
+        String username = null;
+
         try {
+            // Tenta extrair o nome de usuário do token
             username = jwtTokenUtil.getUsernameFromToken(jwtToken);
-        } catch (IllegalArgumentException e) {
-            response.sendError(HttpStatus.UNAUTHORIZED.value(), "TOKEN_INCORRETO");
-            return;
-        } catch (ExpiredJwtException e) {
-            response.sendError(HttpStatus.UNAUTHORIZED.value(), "TOKEN_EXPIRADO");
+            System.out.println("✅ Token válido. Usuário extraído do token: " + username);
+        } catch (Exception e) {
+            // Em caso de erro ao processar o token, retorna erro 401
+            System.out.println("🚨 Erro ao processar token JWT: " + e.getMessage());
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "TOKEN INVÁLIDO");
             return;
         }
 
-        // Verifica se o usuário já está autenticado
+        // Verifica se o usuário não está autenticado e realiza a autenticação
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            // Carrega os detalhes do usuário com o nome extraído do token
             UserDetails userDetails = this.jwtUserDetailsService.loadUserByUsername(username);
 
             if (jwtTokenUtil.validateToken(jwtToken, userDetails)) {
-                UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-                usernamePasswordAuthenticationToken
-                        .setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
+                // Cria o token de autenticação e o coloca no contexto de segurança
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails,
+                        null, userDetails.getAuthorities());
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+                System.out.println("🔐 Usuário autenticado: " + username);
+            } else {
+                // Se o token for inválido ou expirado
+                System.out.println("🚨 Token inválido ou expirado!");
             }
         }
+
+        // Passa a requisição para o próximo filtro
         chain.doFilter(request, response);
     }
 }
