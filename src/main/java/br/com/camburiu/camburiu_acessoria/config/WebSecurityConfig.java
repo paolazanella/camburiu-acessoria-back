@@ -15,6 +15,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.firewall.DefaultHttpFirewall;
 import org.springframework.security.web.firewall.HttpFirewall;
 import org.springframework.security.web.firewall.StrictHttpFirewall;
 
@@ -55,7 +56,6 @@ public class WebSecurityConfig {
         return http.build();
     }
 
-    
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationProvider authenticationProvider) {
         return new ProviderManager(List.of(authenticationProvider));
@@ -72,8 +72,16 @@ public class WebSecurityConfig {
     @Bean
     public HttpFirewall allowUrlEncodedPercent() {
         StrictHttpFirewall firewall = new StrictHttpFirewall();
-        firewall.setAllowUrlEncodedPercent(true); // ✅ Permite caracteres especiais na URL
+        firewall.setAllowUrlEncodedPercent(true); // Permite o caractere `%`
+        firewall.setAllowUrlEncodedSlash(true); // Permite barras codificadas na URL
+        firewall.setAllowBackSlash(true); // Permite barras invertidas
+        firewall.setAllowSemicolon(true); // Permite `;` na URL
         return firewall;
+    }
+
+    @Bean
+    public HttpFirewall defaultHttpFirewall() {
+        return new DefaultHttpFirewall();
     }
 
     @Bean

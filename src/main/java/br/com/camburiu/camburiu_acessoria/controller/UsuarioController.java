@@ -31,9 +31,9 @@ public class UsuarioController {
 
     // 🔹 Injeção de dependências pelo construtor
     public UsuarioController(UsuarioRepository usuarioRepository,
-                             JwtTokenUtil jwtTokenUtil,
-                             JwtUserDetailsService userDetailsService,
-                             AuthenticationManager authenticationManager) {
+            JwtTokenUtil jwtTokenUtil,
+            JwtUserDetailsService userDetailsService,
+            AuthenticationManager authenticationManager) {
         this.usuarioRepository = usuarioRepository;
         this.jwtTokenUtil = jwtTokenUtil;
         this.userDetailsService = userDetailsService;
@@ -42,7 +42,8 @@ public class UsuarioController {
 
     // 🔍 Listar todos os usuários (somente Admin)
     @GetMapping
-    public ResponseEntity<List<Usuario>> listarUsuarios(@RequestHeader(value = "Authorization", required = false) String token) {
+    public ResponseEntity<List<Usuario>> listarUsuarios(
+            @RequestHeader(value = "Authorization", required = false) String token) {
         Usuario usuarioLogado = validarTokenEObterUsuario(token);
         if (usuarioLogado.getStatus() != 1) { // Apenas admin pode listar usuários
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
