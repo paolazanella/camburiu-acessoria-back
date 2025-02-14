@@ -3,12 +3,11 @@ package br.com.camburiu.camburiu_acessoria.controller;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
-
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -24,35 +23,38 @@ import br.com.camburiu.camburiu_acessoria.service.JwtUserDetailsService;
 @RequestMapping("/usuarios")
 public class UsuarioController {
 
-    @Autowired
-    private UsuarioRepository usuarioRepository;
-
-
-    @Autowired
-    private JwtTokenUtil jwtTokenUtil;
-
-    @Autowired
-    private JwtUserDetailsService userDetailsService;
-
+    private final UsuarioRepository usuarioRepository;
+    private final JwtTokenUtil jwtTokenUtil;
+    private final JwtUserDetailsService userDetailsService;
+    private final AuthenticationManager authenticationManager;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
+    // 🔹 Injeção de dependências pelo construtor
+    public UsuarioController(UsuarioRepository usuarioRepository,
+                             JwtTokenUtil jwtTokenUtil,
+                             JwtUserDetailsService userDetailsService,
+                             AuthenticationManager authenticationManager) {
+        this.usuarioRepository = usuarioRepository;
+        this.jwtTokenUtil = jwtTokenUtil;
+        this.userDetailsService = userDetailsService;
+        this.authenticationManager = authenticationManager;
+    }
 
     // 🔍 Listar todos os usuários (somente Admin)
     @GetMapping
     public ResponseEntity<List<Usuario>> listarUsuarios(@RequestHeader(value = "Authorization", required = false) String token) {
         Usuario usuarioLogado = validarTokenEObterUsuario(token);
-
         if (usuarioLogado.getStatus() != 1) { // Apenas admin pode listar usuários
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-
         return ResponseEntity.ok(usuarioRepository.findAll());
     }
 
     // 🔍 Buscar usuário por ID (somente o próprio usuário ou admin)
     @GetMapping("/{id}")
-    public ResponseEntity<Usuario> buscarPorId(@PathVariable Long id, @RequestHeader(value = "Authorization", required = false) String token) {
+    public ResponseEntity<Usuario> buscarPorId(@PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String token) {
         Usuario usuarioLogado = validarTokenEObterUsuario(token);
-
         Optional<Usuario> usuario = usuarioRepository.findById(id);
 
         if (usuario.isPresent() && (usuarioLogado.getStatus() == 1 || usuarioLogado.getId().equals(id))) {
@@ -64,10 +66,10 @@ public class UsuarioController {
 
     // ➕ Criar novo usuário (somente Admin, exceto no primeiro cadastro)
     @PostMapping
-    public ResponseEntity<Usuario> criarUsuario(@RequestBody Usuario usuario, @RequestHeader(value = "Authorization", required = false) String token) {
+    public ResponseEntity<Usuario> criarUsuario(@RequestBody Usuario usuario,
+            @RequestHeader(value = "Authorization", required = false) String token) {
         if (usuarioRepository.count() == 0) {
-            // Se for o primeiro usuário, torna-se admin automaticamente
-            usuario.setStatus(1);
+            usuario.setStatus(1); // Primeiro usuário se torna admin
         } else {
             Usuario usuarioLogado = validarTokenEObterUsuario(token);
             if (usuarioLogado.getStatus() != 1) {
@@ -84,7 +86,8 @@ public class UsuarioController {
 
     // ✏️ Atualizar informações do usuário
     @PutMapping("/{id}")
-    public ResponseEntity<Usuario> atualizarUsuario(@PathVariable Long id, @RequestBody Usuario usuarioAtualizado, @RequestHeader(value = "Authorization", required = false) String token) {
+    public ResponseEntity<Usuario> atualizarUsuario(@PathVariable Long id, @RequestBody Usuario usuarioAtualizado,
+            @RequestHeader(value = "Authorization", required = false) String token) {
         Usuario usuarioLogado = validarTokenEObterUsuario(token);
 
         return usuarioRepository.findById(id).map(usuario -> {
@@ -95,8 +98,7 @@ public class UsuarioController {
             usuario.setNome(usuarioAtualizado.getNome());
             usuario.setEmail(usuarioAtualizado.getEmail());
 
-            // Apenas admin pode mudar status
-            if (usuarioLogado.getStatus() == 1) {
+            if (usuarioLogado.getStatus() == 1) { // Apenas admin pode mudar status
                 usuario.setStatus(usuarioAtualizado.getStatus());
             }
 
@@ -106,9 +108,9 @@ public class UsuarioController {
 
     // ❌ Excluir usuário (somente admin)
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletarUsuario(@PathVariable Long id, @RequestHeader(value = "Authorization", required = false) String token) {
+    public ResponseEntity<Void> deletarUsuario(@PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String token) {
         Usuario usuarioLogado = validarTokenEObterUsuario(token);
-
         if (usuarioLogado.getStatus() != 1) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
@@ -120,26 +122,20 @@ public class UsuarioController {
         return ResponseEntity.notFound().build();
     }
 
-    // 🔐 Endpoint para login e geração de Token
+    // 🔐 Login e geração de Token
     @PostMapping("/authenticate")
     public ResponseEntity<?> createAuthenticationToken(@RequestBody Usuario usuario) {
         try {
-            authenticate(usuario.getEmail(), usuario.getSenha());
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(usuario.getEmail(), usuario.getSenha()));
 
             final UserDetails userDetails = userDetailsService.loadUserByUsername(usuario.getEmail());
             final String token = jwtTokenUtil.generateToken(userDetails);
 
             return ResponseEntity.ok(new JwtResponse(token));
-        } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "USUARIO_INCORRETO");
-        }
-    }
 
-    // 🔐 Método privado para autenticar usuário
-    private void authenticate(String username, String password) throws Exception {
-        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-        if (!passwordEncoder.matches(password, userDetails.getPassword())) {
-            throw new BadCredentialsException("INVALID_CREDENTIALS");
+        } catch (BadCredentialsException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuário ou senha inválidos");
         }
     }
 
