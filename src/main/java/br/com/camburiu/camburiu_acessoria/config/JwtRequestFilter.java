@@ -32,19 +32,24 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain chain)
             throws ServletException, IOException {
-        // Recupera o cabeçalho Authorization da requisição
+
+        // Recupera o cabeçalho Authorization
         final String requestTokenHeader = request.getHeader("Authorization");
+        System.out.println("🔍 Token recebido no cabeçalho: " + requestTokenHeader);
+        request.getHeaderNames().asIterator()
+                .forEachRemaining(headerName -> System.out.println(headerName + ": " + request.getHeader(headerName)));
 
         if (requestTokenHeader == null || !requestTokenHeader.startsWith("Bearer ")) {
-            // Se o token não for encontrado ou não começar com "Bearer ", faz log e passa
-            // para o próximo filtro
-            System.out.println("🚨 Nenhum token JWT recebido! Header Authorization: " + requestTokenHeader);
+            System.out.println("🚨 Nenhum token JWT válido recebido! Header Authorization: " + requestTokenHeader);
             chain.doFilter(request, response);
             return;
         }
 
-        // Extrai o token JWT do cabeçalho
+        // Extrai o token JWT
         String jwtToken = requestTokenHeader.substring(7);
+        System.out.println("✅ Token extraído: " + jwtToken);
+
+        // Extrai o token JWT do cabeçalho
         String username = null;
 
         try {
