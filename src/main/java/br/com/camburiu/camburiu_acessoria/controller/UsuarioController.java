@@ -67,21 +67,16 @@ public class UsuarioController {
 
     // ➕ Criar novo usuário (somente Admin, exceto no primeiro cadastro)
     @PostMapping
-    public ResponseEntity<Usuario> criarUsuario(@RequestBody Usuario usuario,
-            @RequestHeader(value = "Authorization", required = false) String token) {
-        if (usuarioRepository.count() == 0) {
-            usuario.setStatus(1); // Primeiro usuário se torna admin
+    public ResponseEntity<Usuario> criarUsuario(@RequestBody Usuario usuario) {
+        long totalUsuarios = usuarioRepository.count();
+    
+        if (totalUsuarios == 0) {
+            usuario.setStatus(1); // Primeiro usuário se torna ADMIN automaticamente
         } else {
-            Usuario usuarioLogado = validarTokenEObterUsuario(token);
-            if (usuarioLogado.getStatus() != 1) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-            }
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cadastro permitido apenas para admins");
         }
-
+    
         usuario.setSenha(passwordEncoder.encode(usuario.getSenha()));
-        if (usuario.getStatus() == null) {
-            usuario.setStatus(2); // Usuário comum por padrão
-        }
         return ResponseEntity.ok(usuarioRepository.save(usuario));
     }
 
