@@ -42,6 +42,7 @@ public class JwtAuthenticationController {
     public ResponseEntity<?> createAuthenticationToken(@RequestBody JwtRequest authenticationRequest) {
         try {
             System.out.println("🔍 Iniciando autenticação para: " + authenticationRequest.getUsername());
+            System.out.println("🔑 Tentando autenticar...");
 
             authenticate(authenticationRequest.getUsername(), authenticationRequest.getPassword());
 
