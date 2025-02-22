@@ -42,14 +42,17 @@ public class JwtAuthenticationController {
     public ResponseEntity<?> createAuthenticationToken(@RequestBody JwtRequest authenticationRequest) {
         try {
             System.out.println("🔍 Iniciando autenticação para: " + authenticationRequest.getUsername());
-            System.out.println("🔑 Tentando autenticar...");
 
             authenticate(authenticationRequest.getUsername(), authenticationRequest.getPassword());
 
             final UserDetails userDetails = userDetailsService.loadUserByUsername(authenticationRequest.getUsername());
+
+            System.out.println("✅ Usuário autenticado: " + userDetails.getUsername());
+
             final String token = jwtTokenUtil.generateToken(userDetails);
 
-            System.out.println("✅ Token gerado com sucesso!");
+            System.out.println("✅ Token gerado com sucesso: " + token);
+
             return ResponseEntity.ok(new JwtResponse(token));
         } catch (Exception e) {
             System.out.println("❌ Erro ao autenticar: " + e.getMessage());
