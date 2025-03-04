@@ -21,7 +21,7 @@ public class JwtTokenUtil implements Serializable {
     private static final long serialVersionUID = -2550185165626007488L;
     public static final long JWT_TOKEN_VALIDITY = 60 * 60 * 60;
 
-    private final String secret = "camburiu-acessoria-uma-chave-secreta-grande!@123";
+    private final String secret = "AXjhjYSNpBZdnbsaOZo/sH77C4m0ZmrU6tK+fQQ85OI1fIVZvEGBWw+6Q19Tj3SmXSdMT8qdLNNWxTKMwxTx8Q==";
 
     public String getUsernameFromToken(String token) {
         return getClaimFromToken(token, Claims::getSubject);

@@ -43,7 +43,7 @@ public class WebSecurityConfig {
         http
                 .csrf(csrf -> csrf.disable()) // 🔥 Desabilita CSRF para permitir chamadas de API
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/authenticate", "/usuarios", "/swagger-ui/**", "/v3/api-docs/**")
+                        .requestMatchers("/api/authenticate", "/usuarios", "/swagger-ui/**", "/v3/api-docs/**")
                         .permitAll() // 🔓 Permite login e cadastro SEM token
                         .anyRequest().authenticated()) // 🔒 Exige autenticação para o restante
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
