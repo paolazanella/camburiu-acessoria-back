@@ -29,6 +29,7 @@ import br.com.camburiu.camburiu_acessoria.service.JwtUserDetailsService;
 @CrossOrigin
 public class JwtAuthenticationController {
 
+  
     @Autowired
     private AuthenticationManager authenticationManager;
 
@@ -41,24 +42,25 @@ public class JwtAuthenticationController {
     @PostMapping("/api/authenticate")
     public ResponseEntity<?> createAuthenticationToken(@RequestBody JwtRequest authenticationRequest) {
         try {
-            System.out.println("🔍 Iniciando autenticação para: " + authenticationRequest.getEmail());
-    
-            authenticate(authenticationRequest.getEmail(), authenticationRequest.getPassword());
-    
-            final UserDetails userDetails = userDetailsService.loadUserByUsername(authenticationRequest.getEmail());
-    
+            System.out.println("🔍 Iniciando autenticação para: " + authenticationRequest.getUsername());
+
+            authenticate(authenticationRequest.getUsername(), authenticationRequest.getPassword());
+
+            final UserDetails userDetails = userDetailsService.loadUserByUsername(authenticationRequest.getUsername());
+
             System.out.println("✅ Usuário autenticado: " + userDetails.getUsername());
-    
+
             final String token = jwtTokenUtil.generateToken(userDetails);
-    
+
             System.out.println("✅ Token gerado com sucesso: " + token);
-    
+
             return ResponseEntity.ok(new JwtResponse(token));
         } catch (Exception e) {
             System.out.println("❌ Erro ao autenticar: " + e.getMessage());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "USUARIO_INCORRETO");
         }
     }
+
     private void authenticate(String username, String password) throws Exception {
         try {
             System.out.println("🔑 Autenticando: " + username);

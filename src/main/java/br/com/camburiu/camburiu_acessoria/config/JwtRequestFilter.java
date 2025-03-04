@@ -33,54 +33,43 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             @NonNull FilterChain chain)
             throws ServletException, IOException {
 
-        // Recupera o cabeçalho Authorization
         final String requestTokenHeader = request.getHeader("Authorization");
-        System.out.println("🔍 Token recebido no cabeçalho: " + requestTokenHeader);
-        request.getHeaderNames().asIterator()
-                .forEachRemaining(headerName -> System.out.println(headerName + ": " + request.getHeader(headerName)));
+
+        System.out.println("🔍 Token recebido no cabeçalho: " + requestTokenHeader); // DEBUG
 
         if (requestTokenHeader == null || !requestTokenHeader.startsWith("Bearer ")) {
-            System.out.println("🚨 1-Nenhum token JWT válido recebido! Header Authorization: " + requestTokenHeader);
+            System.out.println("🚨 1--Nenhum token JWT válido recebido! Header Authorization: " + requestTokenHeader);
             chain.doFilter(request, response);
             return;
         }
 
-        // Extrai o token JWT
+        // Extrai o token JWT removendo "Bearer "
         String jwtToken = requestTokenHeader.substring(7);
-        System.out.println("✅ Token extraído: " + jwtToken);
-
-        // Extrai o token JWT do cabeçalho
         String username = null;
 
         try {
-            // Tenta extrair o nome de usuário do token
             username = jwtTokenUtil.getUsernameFromToken(jwtToken);
             System.out.println("✅ Token válido. Usuário extraído do token: " + username);
         } catch (Exception e) {
-            // Em caso de erro ao processar o token, retorna erro 401
             System.out.println("🚨 Erro ao processar token JWT: " + e.getMessage());
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "TOKEN INVÁLIDO");
             return;
         }
 
-        // Verifica se o usuário não está autenticado e realiza a autenticação
+        // Se o usuário for válido, autentica no contexto do Spring Security
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            // Carrega os detalhes do usuário com o nome extraído do token
             UserDetails userDetails = this.jwtUserDetailsService.loadUserByUsername(username);
 
             if (jwtTokenUtil.validateToken(jwtToken, userDetails)) {
-                // Cria o token de autenticação e o coloca no contexto de segurança
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails,
                         null, userDetails.getAuthorities());
                 SecurityContextHolder.getContext().setAuthentication(authToken);
                 System.out.println("🔐 Usuário autenticado: " + username);
             } else {
-                // Se o token for inválido ou expirado
                 System.out.println("🚨 Token inválido ou expirado!");
             }
         }
 
-        // Passa a requisição para o próximo filtro
         chain.doFilter(request, response);
     }
 }
