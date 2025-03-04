@@ -6,15 +6,13 @@ import java.util.Optional;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
+
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import br.com.camburiu.camburiu_acessoria.config.JwtTokenUtil;
-import br.com.camburiu.camburiu_acessoria.model.JwtResponse;
+
 import br.com.camburiu.camburiu_acessoria.model.Usuario;
 import br.com.camburiu.camburiu_acessoria.repository.UsuarioRepository;
 import br.com.camburiu.camburiu_acessoria.service.JwtUserDetailsService;
@@ -25,8 +23,7 @@ public class UsuarioController {
 
     private final UsuarioRepository usuarioRepository;
     private final JwtTokenUtil jwtTokenUtil;
-    private final JwtUserDetailsService userDetailsService;
-    private final AuthenticationManager authenticationManager;
+
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     // 🔹 Injeção de dependências pelo construtor
@@ -36,8 +33,7 @@ public class UsuarioController {
             AuthenticationManager authenticationManager) {
         this.usuarioRepository = usuarioRepository;
         this.jwtTokenUtil = jwtTokenUtil;
-        this.userDetailsService = userDetailsService;
-        this.authenticationManager = authenticationManager;
+
     }
 
     // 🔍 Listar todos os usuários (somente Admin)
@@ -66,16 +62,20 @@ public class UsuarioController {
     }
 
     // ➕ Criar novo usuário (somente Admin, exceto no primeiro cadastro)
-    @PostMapping
     public ResponseEntity<Usuario> criarUsuario(@RequestBody Usuario usuario) {
         long totalUsuarios = usuarioRepository.count();
-    
+
         if (totalUsuarios == 0) {
-            usuario.setStatus(1); // Primeiro usuário se torna ADMIN automaticamente
+            usuario.setStatus(1); // ✅ Primeiro usuário se torna ADMIN automaticamente
         } else {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cadastro permitido apenas para admins");
+            // 🔥 Verifica se existe pelo menos um ADMIN cadastrado antes de criar novos
+            // usuários
+            boolean existeAdmin = usuarioRepository.existsByStatus(1);
+            if (!existeAdmin) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Nenhum admin cadastrado.");
+            }
         }
-    
+
         usuario.setSenha(passwordEncoder.encode(usuario.getSenha()));
         return ResponseEntity.ok(usuarioRepository.save(usuario));
     }
@@ -116,23 +116,6 @@ public class UsuarioController {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
-    }
-
-    // 🔐 Login e geração de Token
-    @PostMapping("/authenticate")
-    public ResponseEntity<?> createAuthenticationToken(@RequestBody Usuario usuario) {
-        try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(usuario.getEmail(), usuario.getSenha()));
-
-            final UserDetails userDetails = userDetailsService.loadUserByUsername(usuario.getEmail());
-            final String token = jwtTokenUtil.generateToken(userDetails);
-
-            return ResponseEntity.ok(new JwtResponse(token));
-
-        } catch (BadCredentialsException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuário ou senha inválidos");
-        }
     }
 
     // 🔑 Método para validar o token e obter usuário autenticado

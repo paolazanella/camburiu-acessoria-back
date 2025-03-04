@@ -40,7 +40,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 .forEachRemaining(headerName -> System.out.println(headerName + ": " + request.getHeader(headerName)));
 
         if (requestTokenHeader == null || !requestTokenHeader.startsWith("Bearer ")) {
-            System.out.println("🚨 Nenhum token JWT válido recebido! Header Authorization: " + requestTokenHeader);
+            System.out.println("🚨 1-Nenhum token JWT válido recebido! Header Authorization: " + requestTokenHeader);
             chain.doFilter(request, response);
             return;
         }
