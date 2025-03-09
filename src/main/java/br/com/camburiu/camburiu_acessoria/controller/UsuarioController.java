@@ -42,8 +42,10 @@ public class UsuarioController {
             @RequestHeader(value = "Authorization", required = false) String token) {
         Usuario usuarioLogado = validarTokenEObterUsuario(token);
         if (usuarioLogado.getStatus() != 1) { // Apenas admin pode listar usuários
+            System.out.println("🚨 Acesso negado! Usuário " + usuarioLogado.getEmail() + " tentou listar usuários.");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
+        System.out.println("✅ Usuário " + usuarioLogado.getEmail() + " listou todos os usuários.");
         return ResponseEntity.ok(usuarioRepository.findAll());
     }
 
@@ -68,13 +70,17 @@ public class UsuarioController {
 
         if (totalUsuarios == 0) {
             usuario.setStatus(1); // ✅ Primeiro usuário se torna ADMIN automaticamente
+            System.out.println("🎉 Primeiro usuário criado! Email: " + usuario.getEmail() + " (Admin)");
         } else {
             // 🔥 Verifica se existe pelo menos um ADMIN cadastrado antes de criar novos
             // usuários
             boolean existeAdmin = usuarioRepository.existsByStatus(1);
             if (!existeAdmin) {
+                System.out.println("🚨 Tentativa de cadastro bloqueada. Nenhum admin cadastrado.");
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Nenhum admin cadastrado.");
             }
+            System.out.println("✅ Novo usuário criado: " + usuario.getEmail());
+
         }
 
         usuario.setSenha(passwordEncoder.encode(usuario.getSenha()));
@@ -109,13 +115,16 @@ public class UsuarioController {
             @RequestHeader(value = "Authorization", required = false) String token) {
         Usuario usuarioLogado = validarTokenEObterUsuario(token);
         if (usuarioLogado.getStatus() != 1) {
+            System.out.println("🚨 Acesso negado! Usuário " + usuarioLogado.getEmail() + " tentou deletar o usuário ID: " + id);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
         if (usuarioRepository.existsById(id)) {
             usuarioRepository.deleteById(id);
+            System.out.println("✅ Usuário ID: " + id + " foi deletado por " + usuarioLogado.getEmail());
             return ResponseEntity.noContent().build();
         }
+        System.out.println("❌ Tentativa de deletar usuário ID: " + id + ", mas ele não existe.");
         return ResponseEntity.notFound().build();
     }
 
