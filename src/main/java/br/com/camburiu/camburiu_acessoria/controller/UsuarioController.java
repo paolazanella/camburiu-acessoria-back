@@ -62,6 +62,7 @@ public class UsuarioController {
     }
 
     // ➕ Criar novo usuário (somente Admin, exceto no primeiro cadastro)
+    @PostMapping
     public ResponseEntity<Usuario> criarUsuario(@RequestBody Usuario usuario) {
         long totalUsuarios = usuarioRepository.count();
 
