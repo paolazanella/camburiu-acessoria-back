@@ -60,7 +60,7 @@ public class UsuarioController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
     }
-
+    @PostMapping
     // ➕ Criar novo usuário (somente Admin, exceto no primeiro cadastro)
     public ResponseEntity<Usuario> criarUsuario(@RequestBody Usuario usuario) {
         long totalUsuarios = usuarioRepository.count();
