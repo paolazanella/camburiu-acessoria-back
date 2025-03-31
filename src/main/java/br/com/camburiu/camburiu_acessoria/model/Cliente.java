@@ -5,6 +5,7 @@
 
 package br.com.camburiu.camburiu_acessoria.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.List;
@@ -35,5 +36,6 @@ public class Cliente {
     private Usuario usuario;
 
     @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
     private List<Veiculo> veiculos;
 }

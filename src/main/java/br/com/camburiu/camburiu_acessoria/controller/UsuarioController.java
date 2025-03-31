@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -62,19 +63,29 @@ public class UsuarioController {
     }
     @PostMapping
     // ➕ Criar novo usuário (somente Admin, exceto no primeiro cadastro)
-    public ResponseEntity<Usuario> criarUsuario(@RequestBody Usuario usuario) {
+    public ResponseEntity<Usuario> criarUsuario(@RequestBody Usuario usuario, Authentication authentication) {
         long totalUsuarios = usuarioRepository.count();
 
         if (totalUsuarios == 0) {
             usuario.setStatus(1); // ✅ Primeiro usuário se torna ADMIN automaticamente
         } else {
-            // 🔥 Verifica se existe pelo menos um ADMIN cadastrado antes de criar novos
-            // usuários
-            boolean existeAdmin = usuarioRepository.existsByStatus(1);
-            if (!existeAdmin) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Nenhum admin cadastrado.");
+
+                // 🔥 Verifica se existe pelo menos um ADMIN cadastrado antes de criar novos usuários
+                boolean existeAdmin = usuarioRepository.existsByStatus(1);
+                if (!existeAdmin) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Nenhum admin cadastrado.");
+                }
+
+                // 🔍 Pega o usuário logado
+                Usuario usuarioLogado = usuarioRepository.findByEmail(authentication.getName())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado"));
+
+                // ⚠️ Somente ADMIN pode criar novos usuários
+                if (usuarioLogado.getStatus() != 1) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas administradores podem criar novos usuários.");
+                }
             }
-        }
+
 
         usuario.setSenha(passwordEncoder.encode(usuario.getSenha()));
         return ResponseEntity.ok(usuarioRepository.save(usuario));

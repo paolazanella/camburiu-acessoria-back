@@ -6,6 +6,7 @@
 package br.com.camburiu.camburiu_acessoria.controller;
 
 import br.com.camburiu.camburiu_acessoria.model.Cliente;
+import br.com.camburiu.camburiu_acessoria.model.Veiculo;
 import br.com.camburiu.camburiu_acessoria.repository.ClienteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +20,8 @@ import java.util.Optional;
 public class ClienteController {
     @Autowired
     private ClienteRepository clienteRepository;
-
+    @Autowired
+    private VeiculoController veiculoController;
     @GetMapping
     public List<Cliente> listarClientes() {
         return clienteRepository.findAll();
@@ -32,9 +34,21 @@ public class ClienteController {
     }
 
     @PostMapping
-    public Cliente criarCliente(@RequestBody Cliente cliente) {
-        return clienteRepository.save(cliente);
+    public ResponseEntity<?> criarCliente(@RequestBody Cliente cliente) {
+        if (cliente.getVeiculos() != null) {
+            for (Veiculo veiculo : cliente.getVeiculos()) {
+                if (veiculo.getPlaca() == null) {
+                    return ResponseEntity.badRequest().body("Placa é obrigatória");
+                }
+                veiculo.setVencimento(
+                        veiculoController.calcularVencimento(veiculo.getPlaca())
+                );
+            }
+        }
+        return ResponseEntity.ok(clienteRepository.save(cliente));
     }
+
+
 
     @PutMapping("/{id}")
     public ResponseEntity<Cliente> atualizarCliente(@PathVariable Long id, @RequestBody Cliente clienteAtualizado) {

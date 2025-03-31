@@ -5,6 +5,7 @@
 
 package br.com.camburiu.camburiu_acessoria.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -17,6 +18,9 @@ import java.util.Date;
 @AllArgsConstructor
 @Table(name = "veiculos")
 public class Veiculo {
+
+
+
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,7 +36,8 @@ public class Veiculo {
     @Temporal(TemporalType.DATE)
     private Date vencimento;
 
-    @ManyToOne
-    @JoinColumn(name = "cliente_id")
+    @ManyToOne(optional = false)  // Torna o cliente obrigatório
+    @JsonBackReference  // Lado inverso da relação
+    @JoinColumn(name = "cliente_id", nullable = false)
     private Cliente cliente;
 }
