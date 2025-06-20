@@ -35,7 +35,6 @@ public class JwtAuthenticationController {
 
     @Autowired
     private JwtTokenUtil jwtTokenUtil;
-
     @Autowired
     private JwtUserDetailsService userDetailsService;
 

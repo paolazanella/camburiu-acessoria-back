@@ -15,9 +15,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.firewall.DefaultHttpFirewall;
-import org.springframework.security.web.firewall.HttpFirewall;
-import org.springframework.security.web.firewall.StrictHttpFirewall;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 import java.util.List;
 
@@ -29,19 +27,23 @@ public class WebSecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtRequestFilter jwtRequestFilter;
     private final UserDetailsService jwtUserDetailsService;
+    private final CorsConfigurationSource corsConfigurationSource;
 
     public WebSecurityConfig(JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
-            JwtRequestFilter jwtRequestFilter,
-            UserDetailsService jwtUserDetailsService) {
+                             JwtRequestFilter jwtRequestFilter,
+                             UserDetailsService jwtUserDetailsService,
+                             CorsConfigurationSource corsConfigurationSource) {
         this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
         this.jwtRequestFilter = jwtRequestFilter;
         this.jwtUserDetailsService = jwtUserDetailsService;
+        this.corsConfigurationSource = corsConfigurationSource;
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // 🔥 Desabilita CSRF para permitir chamadas de API
+                .cors(cors -> cors.configurationSource(corsConfigurationSource)) // 🔥 CORS configurado
+                .csrf(csrf -> csrf.disable()) // 🔥 Desabilita CSRF
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/authenticate", "/usuarios", "/swagger-ui/**", "/v3/api-docs/**")
                         .permitAll() // 🔓 Permite login e cadastro SEM token
@@ -66,21 +68,6 @@ public class WebSecurityConfig {
         provider.setUserDetailsService(jwtUserDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
         return provider;
-    }
-
-    @Bean
-    public HttpFirewall allowUrlEncodedPercent() {
-        StrictHttpFirewall firewall = new StrictHttpFirewall();
-        firewall.setAllowUrlEncodedPercent(true); // Permite o caractere `%`
-        firewall.setAllowUrlEncodedSlash(true); // Permite barras codificadas na URL
-        firewall.setAllowBackSlash(true); // Permite barras invertidas
-        firewall.setAllowSemicolon(true); // Permite `;` na URL
-        return firewall;
-    }
-
-    @Bean
-    public HttpFirewall defaultHttpFirewall() {
-        return new DefaultHttpFirewall();
     }
 
     @Bean
