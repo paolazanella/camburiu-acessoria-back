@@ -45,14 +45,18 @@ public class WebSecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource)) // 🔥 CORS configurado
                 .csrf(csrf -> csrf.disable()) // 🔥 Desabilita CSRF
                 .authorizeHttpRequests(auth -> auth
+                        // 🔓 Endpoints públicos (sem autenticação)
                         .requestMatchers("/api/authenticate", "/usuarios", "/swagger-ui/**", "/v3/api-docs/**")
-                        .permitAll() // 🔓 Permite login e cadastro SEM token
-                        .anyRequest().authenticated()) // 🔒 Exige autenticação para o restante
+                        .permitAll()
+                        // 🔒 Todos os outros endpoints exigem autenticação (incluindo /usuarios/me)
+                        .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         // 🔥 Adiciona o filtro JWT ANTES da autenticação padrão do Spring
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
+
+        System.out.println("✅ SecurityFilterChain configurado - /usuarios/me exige autenticação");
 
         return http.build();
     }
