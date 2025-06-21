@@ -139,4 +139,66 @@ public class UsuarioController {
         return usuarioRepository.findByEmail(emailUsuarioLogado)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não encontrado"));
     }
+
+    // 👤 OBTER PERFIL ATUAL
+    @GetMapping("/me")
+    public ResponseEntity<Usuario> obterPerfilAtual(
+            @RequestHeader(value = "Authorization", required = false) String token) {
+        Usuario usuarioLogado = validarTokenEObterUsuario(token);
+
+        // Criar usuário sem senha para retornar
+        Usuario perfilSeguro = new Usuario();
+        perfilSeguro.setId(usuarioLogado.getId());
+        perfilSeguro.setNome(usuarioLogado.getNome());
+        perfilSeguro.setEmail(usuarioLogado.getEmail());
+        perfilSeguro.setStatus(usuarioLogado.getStatus());
+
+        return ResponseEntity.ok(perfilSeguro);
+    }
+
+    // 🔒 ALTERAR SENHA
+    @PutMapping("/{id}/senha")
+    public ResponseEntity<?> alterarSenha(
+            @PathVariable Long id,
+            @RequestBody AlterarSenhaRequest request,
+            @RequestHeader(value = "Authorization", required = false) String token) {
+
+        Usuario usuarioLogado = validarTokenEObterUsuario(token);
+
+        if (!usuarioLogado.getId().equals(id) && usuarioLogado.getStatus() != 1) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("Sem permissão para alterar senha");
+        }
+
+        return usuarioRepository.findById(id).map(usuario -> {
+            if (usuarioLogado.getId().equals(id)) {
+                if (!passwordEncoder.matches(request.getSenhaAtual(), usuario.getSenha())) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body("Senha atual incorreta");
+                }
+            }
+
+            if (request.getNovaSenha() == null || request.getNovaSenha().length() < 6) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body("Nova senha deve ter pelo menos 6 caracteres");
+            }
+
+            usuario.setSenha(passwordEncoder.encode(request.getNovaSenha()));
+            usuarioRepository.save(usuario);
+
+            return ResponseEntity.ok().body("Senha alterada com sucesso");
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    // 📋 CLASSE PARA ALTERAR SENHA
+    public static class AlterarSenhaRequest {
+        private String senhaAtual;
+        private String novaSenha;
+
+        public String getSenhaAtual() { return senhaAtual; }
+        public void setSenhaAtual(String senhaAtual) { this.senhaAtual = senhaAtual; }
+
+        public String getNovaSenha() { return novaSenha; }
+        public void setNovaSenha(String novaSenha) { this.novaSenha = novaSenha; }
+    }
 }
